@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.7.0] — 2026-09-11
+
+### Fixed
+- M3's BUSCO short-summary regex required the `]` to close immediately
+  after `M:<pct>%`, but real BUSCO output is `M:<pct>%,n:<count>]` — the
+  regex never matched, so every species (not just ones with a missing
+  summary file) was recorded as `NO_BUSCO_RESULT` in `mod03_qc.tsv` even
+  after a clean, successful BUSCO run. Regex now allows the optional
+  `,n:<count>` before the closing bracket.
+
+### Added
+- `mod03_qc.tsv` gained `N_proteins` (carried over from M2's proteome
+  stats) and `Mean_protein_length` (mean aa length of the cleaned
+  proteome) columns, between `Code5` and `BUSCO_C`.
+
 ## [v0.6.0] — 2026-09-11
 
 ### Fixed

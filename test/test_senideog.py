@@ -144,6 +144,25 @@ def test_busco_cleanup():
         shutil.rmtree(out_dir)
 
 
+def test_busco_parses_real_summary_format():
+    """Real BUSCO output is 'M:<pct>%,n:<count>]', not 'M:<pct>%]' -- the
+    parsing regex must accept the ',n:<count>' suffix or every species ends
+    up NO_BUSCO_RESULT even after a clean, successful BUSCO run."""
+    workdir = TEST_DIR / "_tmp_busco_parse"
+    out_dir = workdir / "busco" / "Test3"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    summary = out_dir / "short_summary.specific.viridiplantae_odb12.Test3.txt"
+    summary.write_text("C:98.4%[S:97.2%,D:1.2%,F:0.7%,M:0.9%,n:425]\n")
+    orig_require_tool = C._require_tool
+    try:
+        C._require_tool = lambda name: name
+        result = C.run_busco(TEST_DIR / "nonexistent.fa", "viridiplantae_odb12", workdir, 4, "Test3")
+        assert result["C"] == 98.4, result
+    finally:
+        C._require_tool = orig_require_tool
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def test_module7_matrix(tmp_matrix, tmp_stats):
     matrix = C.run_module7(OF_RESULTS, None, tmp_matrix, tmp_stats, min_species=1, force=True)
     assert matrix.shape == (6, 12), matrix.shape
@@ -175,6 +194,7 @@ def main():
     test_clean_and_prefix_dedup()
     test_run_busco_nonfatal_failure()
     test_busco_cleanup()
+    test_busco_parses_real_summary_format()
 
     tmp_matrix = TEST_DIR / "_tmp_mod07_matrix.tsv"
     tmp_stats = TEST_DIR / "_tmp_mod07_stats.tsv"

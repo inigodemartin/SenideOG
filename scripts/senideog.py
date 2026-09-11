@@ -20,7 +20,7 @@ Phylogeny/CAFE5 (fase 2) is a separate script, senideog_phylo.py, written
 once M5/M6 outputs exist to build on -- see the design doc.
 """
 
-VERSION = "v0.6.0"
+VERSION = "v0.7.0"
 
 import argparse
 import getpass

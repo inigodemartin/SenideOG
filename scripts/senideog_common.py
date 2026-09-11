@@ -105,6 +105,11 @@ def count_fasta(path: Path) -> int:
     return sum(1 for _ in iter_fasta(path))
 
 
+def mean_protein_length(path: Path) -> float:
+    lengths = [len(seq) for _, seq in iter_fasta(path)]
+    return sum(lengths) / len(lengths) if lengths else float("nan")
+
+
 # ------------------------------------------------------- M1: inventory / collection
 # Fixed preference order (per species, recorded as "Source"): a species'
 # proteome file is picked from the first tier that has a match -- see the
@@ -457,7 +462,7 @@ def run_busco(fasta: Path, lineage: str, workdir: Path, threads: int, code5: str
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
     _cleanup_busco_run(out_dir, keep=summary)
     text = summary.read_text()
-    matches = re.findall(r"C:([\d.]+)%\[S:([\d.]+)%,D:([\d.]+)%,F:([\d.]+)%,M:([\d.]+)%\]", text)
+    matches = re.findall(r"C:([\d.]+)%\[S:([\d.]+)%,D:([\d.]+)%,F:([\d.]+)%,M:([\d.]+)%(?:,n:\d+)?\]", text)
     if not matches:
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
     return dict(zip(["C", "S", "D", "F", "M"], (float(v) for v in matches[0])))
@@ -504,8 +509,9 @@ def run_module3(proteome_stats: pd.DataFrame, manifest_df: pd.DataFrame, clean_d
         go_file = go_by_species.get(species)
         match_rate = (id_match_rate(fasta, Path(go_file))
                       if go_file and pd.notna(go_file) and Path(go_file).exists() else float("nan"))
-        return {"Species": species, "Code5": code5, "BUSCO_C": c, "BUSCO_status": busco_status,
-                "GO_ID_match_rate": match_rate}
+        return {"Species": species, "Code5": code5, "N_proteins": row["N_proteins"],
+                "Mean_protein_length": round(mean_protein_length(fasta), 1),
+                "BUSCO_C": c, "BUSCO_status": busco_status, "GO_ID_match_rate": match_rate}
 
     if not skip_busco and busco_jobs > 1:
         n_cached = sum(1 for _, row in species_rows
