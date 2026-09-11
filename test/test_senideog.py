@@ -170,6 +170,29 @@ def test_busco_parses_real_summary_format():
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_busco_reruns_truncated_summary():
+    """A summary file that exists but has no results line (BUSCO killed
+    mid-run, e.g. OOM under --busco-jobs) must not be trusted as a
+    checkpoint hit -- it has to be rerun, not permanently recorded as
+    NO_BUSCO_RESULT."""
+    workdir = TEST_DIR / "_tmp_busco_truncated"
+    out_dir = workdir / "busco" / "Test6"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    summary = out_dir / "short_summary.specific.viridiplantae_odb12.Test6.txt"
+    summary.write_text("# BUSCO version is: 6.0.0\n# The lineage dataset is: viridiplantae_odb12\n")
+    orig_require_tool, orig_run = C._require_tool, C._run
+    try:
+        C._require_tool = lambda name: name
+        C._run = lambda cmd, **k: (
+            summary.write_text("C:91.0%[S:88.0%,D:3.0%],F:5.0%,M:4.0%,n:400\n"),
+            subprocess.CompletedProcess(cmd, 0))[1]
+        result = C.run_busco(TEST_DIR / "nonexistent.fa", "viridiplantae_odb12", workdir, 4, "Test6")
+        assert result["C"] == 91.0, result
+    finally:
+        C._require_tool, C._run = orig_require_tool, orig_run
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def test_module3_tracks_unresolved_species():
     """Species that never made it past M1 (no GCA, no proteome file, ...)
     must still show up in mod03_qc.tsv -- otherwise the QC table can't be
@@ -233,6 +256,7 @@ def main():
     test_run_busco_nonfatal_failure()
     test_busco_cleanup()
     test_busco_parses_real_summary_format()
+    test_busco_reruns_truncated_summary()
     test_module3_tracks_unresolved_species()
 
     tmp_matrix = TEST_DIR / "_tmp_mod07_matrix.tsv"

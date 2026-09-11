@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.8.1] — 2026-09-11
+
+### Fixed
+- M3's BUSCO checkpoint (`run_busco`) only checked that
+  `short_summary.*.txt` exists and is non-empty. BUSCO writes the header
+  first and the `***** Results: *****` block last, so a run killed
+  mid-execution (OOM, timeout, scheduler preemption under
+  `--busco-jobs` parallelism) leaves a non-empty but incomplete summary
+  file, which the checkpoint mistook for a finished run — permanently
+  recording that species as `NO_BUSCO_RESULT` with no retry. The
+  checkpoint now also requires the `C:<pct>%` results token to be present
+  before trusting an existing summary; species with a truncated summary
+  are rerun automatically on the next launch.
+
 ## [v0.8.0] — 2026-09-11
 
 ### Added

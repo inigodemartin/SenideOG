@@ -445,18 +445,33 @@ def _cleanup_busco_run(out_dir: Path, keep: Path) -> None:
             shutil.rmtree(p) if p.is_dir() else p.unlink()
 
 
+def _busco_summary_valid(summary: Path) -> bool:
+    """A summary file can exist (checkpoint-visible) yet be incomplete --
+    BUSCO writes the header first and the '***** Results: *****' block
+    last, so a process killed mid-run (OOM, timeout, scheduler preemption)
+    leaves a non-empty file with no results line. Only trust it once the
+    'C:<pct>%' token is actually present."""
+    return (summary.exists() and summary.stat().st_size > 0
+            and re.search(r"C:[\d.]+%", summary.read_text()) is not None)
+
+
 def run_busco(fasta: Path, lineage: str, workdir: Path, threads: int, code5: str) -> dict:
     busco = _require_tool("busco")
     out_dir = workdir / "busco" / code5
     summary = out_dir / f"short_summary.specific.{lineage}.{code5}.txt"
-    if not _checkpoint(summary, f"{code5} BUSCO", False):
+    if _busco_summary_valid(summary):
+        _log(f"  [checkpoint] {code5} BUSCO — {summary.name} already exists, skipping")
+    else:
+        if summary.exists():
+            _log(f"  [WARN] {code5}: existing BUSCO summary has no results line "
+                 f"(likely killed mid-run) -- rerunning")
         (workdir / "busco").mkdir(parents=True, exist_ok=True)
         result = _run([busco, "-i", str(fasta), "-m", "proteins", "-l", lineage, "-o", code5,
                        "-c", str(threads), "-f"], cwd=workdir / "busco", check=False)
         if result.returncode != 0:
             _log(f"  [WARN] {code5}: BUSCO failed (exit {result.returncode}) -- recorded as "
                  f"NO_BUSCO_RESULT, other species continue. stderr tail:\n{(result.stderr or '')[-1500:]}")
-    if not summary.exists():
+    if not _busco_summary_valid(summary):
         if out_dir.exists():
             shutil.rmtree(out_dir)
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
