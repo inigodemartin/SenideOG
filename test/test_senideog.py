@@ -109,6 +109,31 @@ def test_clean_and_prefix_dedup():
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_clean_and_prefix_dedup_avoids_reintroduced_collision():
+    """The naive '_N' suffix for a repeated header can collide with a
+    distinct id that already exists in the raw proteome (e.g. 'gene1'
+    repeated would become 'gene1_2', but the file already has its own
+    unrelated 'gene1_2' entry) -- that must not silently recreate the
+    duplicate BUSCO would choke on."""
+    workdir = TEST_DIR / "_tmp_clean_workdir2"
+    workdir.mkdir(exist_ok=True)
+    raw = workdir / "raw.fa"
+    raw.write_text(">gene1\nMAAA\n>gene1_2\nMDDD\n>gene1\nMBBB\n>gene2\nMCCC\n")
+    out = workdir / "Test5.fa"
+    orig_require_tool, orig_run = C._require_tool, C._run
+    try:
+        C._require_tool = lambda name: name
+        C._run = lambda cmd, **k: (shutil.copy2(raw, Path(cmd[-1])), subprocess.CompletedProcess(cmd, 0))[1]
+        stats = C.clean_and_prefix_fasta(raw, out, "Test5", min_len=1)
+        assert stats["n_kept"] == 4
+        headers = [h for h, _ in C.iter_fasta(out)]
+        assert len(headers) == len(set(headers)), headers  # no duplicates survived
+        assert headers == ["Test5|gene1", "Test5|gene1_2", "Test5|gene1_3", "Test5|gene2"], headers
+    finally:
+        C._require_tool, C._run = orig_require_tool, orig_run
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def test_run_busco_nonfatal_failure():
     """A BUSCO failure for one species must not raise -- callers (M3's
     parallel dispatch) rely on this so other species aren't aborted."""
@@ -253,6 +278,7 @@ def main():
     test_module1_flat_dir()
     test_module1_flat_dir_kingdom_filter()
     test_clean_and_prefix_dedup()
+    test_clean_and_prefix_dedup_avoids_reintroduced_collision()
     test_run_busco_nonfatal_failure()
     test_busco_cleanup()
     test_busco_parses_real_summary_format()

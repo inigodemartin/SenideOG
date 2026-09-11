@@ -1,4 +1,4 @@
-<img src="https://img.shields.io/badge/version-v0.8.1-teal"/>
+<img src="https://img.shields.io/badge/version-v0.8.2-teal"/>
 <img src="https://img.shields.io/badge/python-3.10%2B-blue"/>
 <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey"/>
 

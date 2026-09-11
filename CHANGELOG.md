@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.8.2] — 2026-09-11
+
+### Fixed
+- M2's duplicate-id uniquification (v0.6.0) could reintroduce the exact
+  collision it was meant to fix: a repeated header like `gene1` was
+  renamed to `gene1_2` without checking whether the raw proteome already
+  had its own distinct `gene1_2` entry — in that case the renamed and the
+  pre-existing header collided again, and BUSCO still hard-errors on the
+  duplicate id (`BuscoError: Duplicate of sequence`), aborting the whole
+  BUSCO run for that species (recorded as `NO_BUSCO_RESULT`, with the
+  output directory removed entirely, so no summary file is left behind).
+  The chosen suffix now skips any candidate that collides with an id
+  already present in the raw proteome or already assigned.
+
 ## [v0.8.1] — 2026-09-11
 
 ### Fixed

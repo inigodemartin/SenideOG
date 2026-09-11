@@ -361,22 +361,33 @@ def clean_and_prefix_fasta(fasta_in: Path, out_path: Path, code5: str, min_len: 
     < min_len aa); prefixing with <Code5>| happens in the same pass since
     seqkit has no rename-with-prefix mode that also strips *. Duplicate
     headers in the raw proteome (seen in the wild, e.g. repeated organelle
-    genes) are uniquified with a '.dupN' suffix -- BUSCO hard-errors on a
+    genes) are uniquified with a '_N' suffix -- BUSCO hard-errors on a
     duplicate id and OrthoFinder would silently conflate the two proteins.
     First occurrence keeps its id as-is; the 2nd/3rd/... get a '_2'/'_3'/...
-    suffix."""
+    suffix, skipping any candidate that collides with an id that already
+    exists in the raw proteome (e.g. 'gene1' repeated would naively become
+    'gene1_2', but if the proteome separately already has a distinct
+    'gene1_2' entry that just reintroduces the duplicate BUSCO chokes on)."""
     seqkit = _require_tool("seqkit")
     tmp = out_path.with_suffix(".tmp.fa")
     _run([seqkit, "seq", "-g", "-M", "999999", "-m", str(min_len), str(fasta_in), "-o", str(tmp)])
     n_kept = 0
+    all_headers = {h for h, _ in iter_fasta(tmp)}
     seen = Counter()
+    used = set()
     with open(tmp) as fin, open(out_path, "w") as fout:
         for h, seq in iter_fasta(Path(tmp)):
             seq = seq.rstrip("*").upper()
             seq = re.sub(r"[UJZB]", "X", seq)
             seen[h] += 1
             if seen[h] > 1:
-                h = f"{h}_{seen[h]}"
+                n = seen[h]
+                candidate = f"{h}_{n}"
+                while candidate in all_headers or candidate in used:
+                    n += 1
+                    candidate = f"{h}_{n}"
+                h = candidate
+            used.add(h)
             fout.write(f">{code5}|{h}\n{seq}\n")
             n_kept += 1
     tmp.unlink()
