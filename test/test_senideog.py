@@ -88,6 +88,43 @@ def test_module1_flat_dir_kingdom_filter():
         lineage_tsv.unlink(missing_ok=True)
 
 
+def test_clean_and_prefix_dedup():
+    """Duplicate headers in the raw proteome must be uniquified, not silently
+    kept as-is -- BUSCO hard-errors on a repeated sequence id."""
+    workdir = TEST_DIR / "_tmp_clean_workdir"
+    workdir.mkdir(exist_ok=True)
+    raw = workdir / "raw.fa"
+    raw.write_text(">gene1\nMAAA\n>gene1\nMBBB\n>gene2\nMCCC\n")
+    out = workdir / "Test3.fa"
+    orig_require_tool, orig_run = C._require_tool, C._run
+    try:
+        C._require_tool = lambda name: name
+        C._run = lambda cmd, **k: (shutil.copy2(raw, Path(cmd[-1])), subprocess.CompletedProcess(cmd, 0))[1]
+        stats = C.clean_and_prefix_fasta(raw, out, "Test3", min_len=1)
+        assert stats["n_kept"] == 3
+        headers = [h for h, _ in C.iter_fasta(out)]
+        assert headers == ["Test3|gene1", "Test3|gene1_2", "Test3|gene2"], headers
+    finally:
+        C._require_tool, C._run = orig_require_tool, orig_run
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
+def test_run_busco_nonfatal_failure():
+    """A BUSCO failure for one species must not raise -- callers (M3's
+    parallel dispatch) rely on this so other species aren't aborted."""
+    workdir = TEST_DIR / "_tmp_busco_workdir"
+    workdir.mkdir(exist_ok=True)
+    orig_require_tool, orig_run = C._require_tool, C._run
+    try:
+        C._require_tool = lambda name: name
+        C._run = lambda *a, **k: subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="boom")
+        result = C.run_busco(TEST_DIR / "nonexistent.fa", "viridiplantae_odb12", workdir, 4, "Test2")
+        assert result == {"C": None, "S": None, "D": None, "F": None, "M": None}
+    finally:
+        C._require_tool, C._run = orig_require_tool, orig_run
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def test_busco_cleanup():
     """After a BUSCO run, only the short_summary file should survive per species."""
     out_dir = TEST_DIR / "_tmp_busco_out"
@@ -135,6 +172,8 @@ def main():
     test_module1_inventory()
     test_module1_flat_dir()
     test_module1_flat_dir_kingdom_filter()
+    test_clean_and_prefix_dedup()
+    test_run_busco_nonfatal_failure()
     test_busco_cleanup()
 
     tmp_matrix = TEST_DIR / "_tmp_mod07_matrix.tsv"

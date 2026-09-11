@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.6.0] — 2026-09-11
+
+### Fixed
+- M2 (`clean_and_prefix_fasta`) now uniquifies duplicate sequence ids within
+  a single species' raw proteome (`_2`, `_3`, ... suffix on repeats) —
+  BUSCO hard-errors on a repeated id (`BuscoError: Duplicate of sequence`),
+  and OrthoFinder would otherwise silently conflate the two proteins.
+  Real-world trigger: a proteome with a duplicated organelle gene entry.
+- `run_busco` no longer aborts the whole run when BUSCO fails for one
+  species (previously `_run()`'s `sys.exit(1)` on a non-zero exit code
+  took every other species down with it — including all the ones already
+  running under `--busco-jobs`). The failing species is now recorded as
+  `NO_BUSCO_RESULT` and the run continues; `_run()` gained a `check=False`
+  escape hatch for this, every other caller (seqkit/OrthoFinder/AGAT)
+  still fails fast as before. Its BUSCO output directory is removed on
+  failure too (nothing worth keeping without a summary file).
+
 ## [v0.5.0] — 2026-09-11
 
 ### Added

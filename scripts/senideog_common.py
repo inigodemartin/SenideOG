@@ -59,13 +59,17 @@ def _require_tool(name: str) -> str:
     return tool
 
 
-def _run(cmd: list, capture_stdout: bool = False, env: dict = None, cwd: Path = None) -> subprocess.CompletedProcess:
+def _run(cmd: list, capture_stdout: bool = False, env: dict = None, cwd: Path = None,
+         check: bool = True) -> subprocess.CompletedProcess:
+    """check=False lets the caller handle a non-zero exit itself (used for
+    BUSCO: one species' bad input shouldn't sys.exit() the whole run out
+    from under the other species still processing in parallel)."""
     _log(f"  $ {' '.join(str(c) for c in cmd)}")
     result = subprocess.run(cmd,
                              stdout=subprocess.PIPE if capture_stdout else None,
                              stderr=subprocess.PIPE, text=True,
                              env=env, cwd=cwd)
-    if result.returncode != 0:
+    if check and result.returncode != 0:
         print(f"ERROR: command failed (exit {result.returncode}):\n"
               f"{result.stderr[-3000:]}", file=sys.stderr)
         sys.exit(1)
@@ -350,18 +354,30 @@ def keep_longest_isoform(fasta_in: Path, gff_in: Path, workdir: Path, code5: str
 def clean_and_prefix_fasta(fasta_in: Path, out_path: Path, code5: str, min_len: int) -> dict:
     """seqkit for the real cleaning (strip trailing '*', U/J/Z/B -> X, drop
     < min_len aa); prefixing with <Code5>| happens in the same pass since
-    seqkit has no rename-with-prefix mode that also strips *."""
+    seqkit has no rename-with-prefix mode that also strips *. Duplicate
+    headers in the raw proteome (seen in the wild, e.g. repeated organelle
+    genes) are uniquified with a '.dupN' suffix -- BUSCO hard-errors on a
+    duplicate id and OrthoFinder would silently conflate the two proteins.
+    First occurrence keeps its id as-is; the 2nd/3rd/... get a '_2'/'_3'/...
+    suffix."""
     seqkit = _require_tool("seqkit")
     tmp = out_path.with_suffix(".tmp.fa")
     _run([seqkit, "seq", "-g", "-M", "999999", "-m", str(min_len), str(fasta_in), "-o", str(tmp)])
     n_kept = 0
+    seen = Counter()
     with open(tmp) as fin, open(out_path, "w") as fout:
         for h, seq in iter_fasta(Path(tmp)):
             seq = seq.rstrip("*").upper()
             seq = re.sub(r"[UJZB]", "X", seq)
+            seen[h] += 1
+            if seen[h] > 1:
+                h = f"{h}_{seen[h]}"
             fout.write(f">{code5}|{h}\n{seq}\n")
             n_kept += 1
     tmp.unlink()
+    n_dup = sum(c - 1 for c in seen.values() if c > 1)
+    if n_dup:
+        _log(f"  [WARN] {code5}: {n_dup} duplicate sequence ids in the raw proteome, uniquified with '_N'")
     return {"n_kept": n_kept}
 
 
@@ -430,9 +446,14 @@ def run_busco(fasta: Path, lineage: str, workdir: Path, threads: int, code5: str
     summary = out_dir / f"short_summary.specific.{lineage}.{code5}.txt"
     if not _checkpoint(summary, f"{code5} BUSCO", False):
         (workdir / "busco").mkdir(parents=True, exist_ok=True)
-        _run([busco, "-i", str(fasta), "-m", "proteins", "-l", lineage, "-o", code5,
-              "-c", str(threads), "-f"], cwd=workdir / "busco")
+        result = _run([busco, "-i", str(fasta), "-m", "proteins", "-l", lineage, "-o", code5,
+                       "-c", str(threads), "-f"], cwd=workdir / "busco", check=False)
+        if result.returncode != 0:
+            _log(f"  [WARN] {code5}: BUSCO failed (exit {result.returncode}) -- recorded as "
+                 f"NO_BUSCO_RESULT, other species continue. stderr tail:\n{(result.stderr or '')[-1500:]}")
     if not summary.exists():
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
     _cleanup_busco_run(out_dir, keep=summary)
     text = summary.read_text()
