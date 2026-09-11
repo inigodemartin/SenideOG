@@ -1,0 +1,19 @@
+name: senideog
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python>=3.10
+  - pandas
+  - matplotlib
+  - codecarbon          # optional; enables carbon footprint tracking
+  - orthofinder>=3.1.5
+  - diamond
+  - busco>=5
+  - seqkit
+  - agat
+  - trimal
+  - iqtree
+  - astral-tree
+  - cafe
+  - treepl

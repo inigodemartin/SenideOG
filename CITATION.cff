@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "SenideOG"
+abstract: >
+  Builds a species x orthogroup matrix for ~500 Viridiplantae reference
+  proteomes via OrthoFinder (core inference + assignment), replacing the
+  GO-term unit used by prior comparative analyses with orthology inferred
+  directly from sequences. "senide" is Basque for "relative/kin", + OG for
+  orthogroup.
+authors:
+  - family-names: de Martín-Agirre
+    given-names: Iñigo
+    email: imartinagirre@gmail.com
+    orcid: "https://orcid.org/0009-0006-0374-6504"
+version: "v0.3.0"
+date-released: "2026-09-11"
+license: MIT
+repository-code: "https://github.com/inigodemartin/SenideOG"
+keywords:
+  - orthology
+  - orthogroups
+  - comparative genomics
+  - Viridiplantae
+  - OrthoFinder
+  - phylogenomics
