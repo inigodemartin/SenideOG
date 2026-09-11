@@ -170,6 +170,37 @@ def test_busco_parses_real_summary_format():
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_module3_tracks_unresolved_species():
+    """Species that never made it past M1 (no GCA, no proteome file, ...)
+    must still show up in mod03_qc.tsv -- otherwise the QC table can't be
+    used to monitor every initially-selected species, only the survivors."""
+    workdir = TEST_DIR / "_tmp_mod03_workdir"
+    clean_dir = workdir / "proteomes_clean"
+    clean_dir.mkdir(parents=True, exist_ok=True)
+    results_path = TEST_DIR / "_tmp_mod03_qc.tsv"
+    try:
+        (clean_dir / "Test4.fa").write_text(">Test4|gene1\nMAAAA\n")
+        manifest_df = pd.DataFrame([
+            {"Species": "Test4_resolved", "GOFile": None, "Status": "resolved"},
+            {"Species": "Test5_dropped", "GOFile": None, "Status": "no_gca_found"},
+        ])
+        proteome_stats = pd.DataFrame([
+            {"Species": "Test4_resolved", "Code5": "Test4", "N_proteins": 1, "Source": "asis"},
+        ])
+        df = C.run_module3(proteome_stats, manifest_df, clean_dir, workdir, results_path,
+                            lineage="viridiplantae_odb12", busco_pass=0.9, busco_flag=0.5, id_threshold=0.0,
+                            threads=1, skip_busco=True, force=True)
+        assert len(df) == 2, df
+        resolved = df[df["Species"] == "Test4_resolved"].iloc[0]
+        assert resolved["Status"] == "resolved" and resolved["BUSCO_status"] == "SKIPPED", resolved
+        dropped = df[df["Species"] == "Test5_dropped"].iloc[0]
+        assert dropped["Status"] == "no_gca_found" and dropped["BUSCO_status"] == "N/A", dropped
+        assert pd.isna(dropped["N_proteins"]), dropped
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+        results_path.unlink(missing_ok=True)
+
+
 def test_module7_matrix(tmp_matrix, tmp_stats):
     matrix = C.run_module7(OF_RESULTS, None, tmp_matrix, tmp_stats, min_species=1, force=True)
     assert matrix.shape == (6, 12), matrix.shape
@@ -202,6 +233,7 @@ def main():
     test_run_busco_nonfatal_failure()
     test_busco_cleanup()
     test_busco_parses_real_summary_format()
+    test_module3_tracks_unresolved_species()
 
     tmp_matrix = TEST_DIR / "_tmp_mod07_matrix.tsv"
     tmp_stats = TEST_DIR / "_tmp_mod07_stats.tsv"

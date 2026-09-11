@@ -516,7 +516,7 @@ def run_module3(proteome_stats: pd.DataFrame, manifest_df: pd.DataFrame, clean_d
         go_file = go_by_species.get(species)
         match_rate = (id_match_rate(fasta, Path(go_file))
                       if go_file and pd.notna(go_file) and Path(go_file).exists() else float("nan"))
-        return {"Species": species, "Code5": code5, "N_proteins": row["N_proteins"],
+        return {"Species": species, "Code5": code5, "Status": "resolved", "N_proteins": row["N_proteins"],
                 "Mean_protein_length": round(mean_protein_length(fasta), 1),
                 "BUSCO_C": c, "BUSCO_status": busco_status, "GO_ID_match_rate": match_rate}
 
@@ -542,6 +542,19 @@ def run_module3(proteome_stats: pd.DataFrame, manifest_df: pd.DataFrame, clean_d
         rows = [qc_row(row) for _, row in species_rows]
 
     df = pd.DataFrame(rows)
+
+    # Species dropped before M2/M3 (no GCA, no proteome file, ambiguous GCA,
+    # user-skipped) never reach qc_row -- keep them in the table anyway so
+    # every initially-selected species can be tracked, not just the ones
+    # that made it this far.
+    not_resolved = manifest_df[~manifest_df["Species"].isin(df["Species"])]
+    if len(not_resolved):
+        extra = pd.DataFrame({"Species": not_resolved["Species"], "Code5": None,
+                               "Status": not_resolved["Status"], "N_proteins": None,
+                               "Mean_protein_length": None, "BUSCO_C": None,
+                               "BUSCO_status": "N/A", "GO_ID_match_rate": None})
+        df = pd.concat([df, extra], ignore_index=True)
+
     low_match = df["GO_ID_match_rate"].dropna()
     low_match = low_match[low_match < id_threshold]
     if len(low_match):
@@ -554,7 +567,9 @@ def run_module3(proteome_stats: pd.DataFrame, manifest_df: pd.DataFrame, clean_d
     n_pass = (df["BUSCO_status"] == "PASS").sum()
     n_flag = (df["BUSCO_status"] == "FLAG").sum()
     n_fail = (df["BUSCO_status"] == "FAIL").sum()
-    _log(f"  wrote {results_path.name} — BUSCO PASS={n_pass} FLAG={n_flag} FAIL={n_fail}")
+    n_not_resolved = (df["Status"] != "resolved").sum()
+    _log(f"  wrote {results_path.name} — BUSCO PASS={n_pass} FLAG={n_flag} FAIL={n_fail}, "
+         f"{n_not_resolved} species never resolved past M1")
     return df
 
 

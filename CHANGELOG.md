@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.8.0] — 2026-09-11
+
+### Added
+- `mod03_qc.tsv` now includes every species from the M1 manifest, not just
+  the ones that made it to M2/M3 — species dropped for `no_gca_found`,
+  `no_proteome_found`, `ambiguous_gca_skipped` or `skipped_by_user` are
+  added back in with a new `Status` column carrying that M1 reason and
+  `BUSCO_status="N/A"`, so the full initially-selected species list can be
+  monitored in one table instead of only the survivors.
+
 ## [v0.7.1] — 2026-09-11
 
 ### Fixed
