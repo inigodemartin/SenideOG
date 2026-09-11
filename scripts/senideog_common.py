@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pandas as pd
 
-DEFAULT_LINEAGE_PATH = Path(__file__).parent.parent.parent / "PCA" / "data" / "species_lineage.tsv"
-DEFAULT_SPECIES_TAXID_PATH = Path(__file__).parent.parent.parent / "PCA" / "data" / "species_taxid.tsv"
+DEFAULT_LINEAGE_PATH = Path(__file__).parent.parent / "data" / "species_lineage.tsv"
+DEFAULT_SPECIES_TAXID_PATH = Path(__file__).parent.parent / "data" / "species_taxid.tsv"
 
 # ------------------------------------------------------------------ logging
 _LOG_FH = None

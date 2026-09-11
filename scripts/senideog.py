@@ -20,7 +20,7 @@ Phylogeny/CAFE5 (fase 2) is a separate script, senideog_phylo.py, written
 once M5/M6 outputs exist to build on -- see the design doc.
 """
 
-VERSION = "v0.3.0"
+VERSION = "v0.4.0"
 
 import argparse
 import getpass
@@ -70,7 +70,7 @@ def parse_args():
     ap.add_argument("--output", type=Path, required=True, help="Run output directory")
     ap.add_argument("--threads", type=int, default=8, help="Threads for seqkit/BUSCO/OrthoFinder (default: 8)")
     ap.add_argument("--species-taxid", type=Path, default=C.DEFAULT_SPECIES_TAXID_PATH,
-                     help="Species -> TaxID lookup TSV (default: sibling repo PCA/data/species_taxid.tsv)")
+                     help="Species -> TaxID lookup TSV (default: data/species_taxid.tsv, bundled in this repo)")
     ap.add_argument("--non_interactive", action="store_true",
                      help="Skip species with >1 genome assembly (GCA) instead of prompting")
     ap.add_argument("--kingdom", default="Viridiplantae",
@@ -91,7 +91,7 @@ def parse_args():
     ap.add_argument("--core-size", type=int, default=64, help="Target core size (default: 64)")
     ap.add_argument("--lineage-file", type=Path, default=C.DEFAULT_LINEAGE_PATH,
                      help="Species -> order/family (APG IV) TSV for stratified core selection "
-                          "(default: sibling repo PCA/data/species_lineage.tsv)")
+                          "(default: data/species_lineage.tsv, bundled in this repo)")
     ap.add_argument("--core-species-override", type=Path, default=None,
                      help="TSV with a 'Species' column to use as the core directly, bypassing stratified "
                           "selection (manual curation, or local testing without real BUSCO/lineage data)")

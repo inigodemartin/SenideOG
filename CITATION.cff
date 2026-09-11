@@ -12,7 +12,7 @@ authors:
     given-names: Iñigo
     email: imartinagirre@gmail.com
     orcid: "https://orcid.org/0009-0006-0374-6504"
-version: "v0.3.0"
+version: "v0.4.0"
 date-released: "2026-09-11"
 license: MIT
 repository-code: "https://github.com/inigodemartin/SenideOG"

@@ -1,4 +1,4 @@
-<img src="https://img.shields.io/badge/version-v0.3.0-teal"/>
+<img src="https://img.shields.io/badge/version-v0.4.0-teal"/>
 <img src="https://img.shields.io/badge/python-3.10%2B-blue"/>
 <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey"/>
 
@@ -67,7 +67,7 @@ scripts/senideog.py --fasta-dir /path/to/proteomes_fasta --output run01 --skip_m
 | `--fasta-dir` | — | Flat folder with one proteome FASTA per species, no GCA/GO tree — alternative to `--root`. No GO tables in this mode, so pass `--skip_mod8` |
 | `--output` | — | run output directory (required) |
 | `--threads` | 8 | threads for seqkit/BUSCO/OrthoFinder |
-| `--species-taxid` | `PCA/data/species_taxid.tsv` | Species -> TaxID lookup |
+| `--species-taxid` | `data/species_taxid.tsv` (bundled) | Species -> TaxID lookup |
 | `--non_interactive` | off | skip (rather than prompt for) species with >1 genome assembly |
 | `--kingdom` | `Viridiplantae` | With `--fasta-dir`: keep only species whose `kingdom` column in `--lineage-file` matches this (pass `''` to disable) |
 | `--min-protein-len` | 30 | M2: drop proteins shorter than this |
@@ -76,7 +76,7 @@ scripts/senideog.py --fasta-dir /path/to/proteomes_fasta --output run01 --skip_m
 | `--id-match-threshold` | 0.5 | M3: min. FASTA<->GO-table id match rate before aborting |
 | `--disk-estimate-gb` | 300 | M3: disk space the core all-vs-all + gene trees are expected to need |
 | `--core-size` | 64 | M4 target core size |
-| `--lineage-file` | `PCA/data/species_lineage.tsv` | M4 order/family (APG IV) lookup for stratified selection |
+| `--lineage-file` | `data/species_lineage.tsv` (bundled) | M4 order/family (APG IV) lookup for stratified selection; also used by M1's `--kingdom` filter |
 | `--core-species-override` | — | TSV with a `Species` column to use as the core directly (bypasses M4) |
 | `--min-species` | 4 | M7: drop orthogroups present in fewer species than this |
 | `--go-consensus-threshold` | 0.5 | M8: min. fraction of annotated OG members sharing a GO to report it |

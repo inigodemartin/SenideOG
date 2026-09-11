@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.4.0] — 2026-09-11
+
+### Changed
+- `data/species_lineage.tsv` and `data/species_taxid.tsv` are now bundled
+  inside this repo instead of being read from a sibling `PCA/` checkout —
+  `--lineage-file` and `--species-taxid` default to `data/` here, so
+  `--kingdom` filtering and M4 core selection work out of the box after a
+  plain `git clone`, with no other repo required alongside it.
+
 ## [v0.3.0] — 2026-09-11
 
 ### Added
