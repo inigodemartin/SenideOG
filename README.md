@@ -1,4 +1,4 @@
-<img src="https://img.shields.io/badge/version-v0.4.0-teal"/>
+<img src="https://img.shields.io/badge/version-v0.5.0-teal"/>
 <img src="https://img.shields.io/badge/python-3.10%2B-blue"/>
 <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey"/>
 
@@ -72,6 +72,7 @@ scripts/senideog.py --fasta-dir /path/to/proteomes_fasta --output run01 --skip_m
 | `--kingdom` | `Viridiplantae` | With `--fasta-dir`: keep only species whose `kingdom` column in `--lineage-file` matches this (pass `''` to disable) |
 | `--min-protein-len` | 30 | M2: drop proteins shorter than this |
 | `--busco-lineage` | `viridiplantae_odb12` | M3 BUSCO dataset |
+| `--busco-jobs` | 1 | M3: BUSCO runs to execute in parallel (each still uses `--threads`; total CPU ~= `--busco-jobs` x `--threads`) |
 | `--busco-c-pass` / `--busco-c-flag` | 0.85 / 0.80 | M3 BUSCO C%% thresholds (PASS / FLAG / FAIL) |
 | `--id-match-threshold` | 0.5 | M3: min. FASTA<->GO-table id match rate before aborting |
 | `--disk-estimate-gb` | 300 | M3: disk space the core all-vs-all + gene trees are expected to need |

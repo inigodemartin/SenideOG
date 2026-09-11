@@ -20,7 +20,7 @@ Phylogeny/CAFE5 (fase 2) is a separate script, senideog_phylo.py, written
 once M5/M6 outputs exist to build on -- see the design doc.
 """
 
-VERSION = "v0.4.0"
+VERSION = "v0.5.0"
 
 import argparse
 import getpass
@@ -81,6 +81,9 @@ def parse_args():
                      help="Drop proteins shorter than this many aa in M2 (default: 30)")
 
     ap.add_argument("--busco-lineage", default="viridiplantae_odb12", help="BUSCO lineage dataset (default: viridiplantae_odb12)")
+    ap.add_argument("--busco-jobs", type=int, default=1,
+                     help="Number of BUSCO runs to execute in parallel; each still uses --threads internally, "
+                          "so total CPU used ~= --busco-jobs x --threads (default: 1, sequential)")
     ap.add_argument("--busco-c-pass", type=float, default=0.85, help="BUSCO C%% >= this -> PASS (default: 0.85)")
     ap.add_argument("--busco-c-flag", type=float, default=0.80, help="BUSCO C%% >= this -> FLAG, below -> FAIL (default: 0.80)")
     ap.add_argument("--id-match-threshold", type=float, default=0.5,
@@ -230,7 +233,8 @@ def main():
         C.check_disk(workdir, args.disk_estimate_gb)
         qc_df = C.run_module3(proteome_stats, manifest_df, clean_dir, workdir, qc_path,
                                args.busco_lineage, args.busco_c_pass, args.busco_c_flag,
-                               args.id_match_threshold, args.threads, skip_busco=False, force=args.force)
+                               args.id_match_threshold, args.threads, skip_busco=False, force=args.force,
+                               busco_jobs=args.busco_jobs)
     elif qc_path.exists():
         import pandas as pd
         qc_df = pd.read_csv(qc_path, sep="\t")

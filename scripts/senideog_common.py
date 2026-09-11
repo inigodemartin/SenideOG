@@ -7,6 +7,7 @@ FASTA cleaning, QC, core-species selection, and OrthoFinder-output parsing
 into the species x orthogroup matrix and the OG annotation bridge file.
 """
 
+import concurrent.futures
 import fnmatch
 import gzip
 import re
@@ -402,6 +403,27 @@ def run_module2(manifest_df: pd.DataFrame, workdir: Path, results_path: Path, mi
 
 
 # ----------------------------------------------------------------- M3: QC
+def ensure_busco_dataset(lineage: str, workdir: Path) -> None:
+    """Pre-download+extract the BUSCO lineage dataset once, sequentially,
+    before any parallel `busco` runs start -- otherwise N concurrent BUSCO
+    processes race to populate the same shared busco_downloads/ cache on the
+    very first run. No-op (fast) if already downloaded."""
+    busco = _require_tool("busco")
+    busco_dir = workdir / "busco"
+    busco_dir.mkdir(parents=True, exist_ok=True)
+    _run([busco, "--download", lineage], cwd=busco_dir)
+
+
+def _cleanup_busco_run(out_dir: Path, keep: Path) -> None:
+    """Delete everything BUSCO wrote under out_dir except `keep` (the parsed
+    short_summary file) -- hmmer_output/, busco_sequences/, logs/, etc. are
+    large and fully reproducible by rerunning BUSCO, so there's no reason to
+    keep them per species once the C/S/D/F/M numbers are parsed out."""
+    for p in out_dir.iterdir():
+        if p != keep:
+            shutil.rmtree(p) if p.is_dir() else p.unlink()
+
+
 def run_busco(fasta: Path, lineage: str, workdir: Path, threads: int, code5: str) -> dict:
     busco = _require_tool("busco")
     out_dir = workdir / "busco" / code5
@@ -412,6 +434,7 @@ def run_busco(fasta: Path, lineage: str, workdir: Path, threads: int, code5: str
               "-c", str(threads), "-f"], cwd=workdir / "busco")
     if not summary.exists():
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
+    _cleanup_busco_run(out_dir, keep=summary)
     text = summary.read_text()
     matches = re.findall(r"C:([\d.]+)%\[S:([\d.]+)%,D:([\d.]+)%,F:([\d.]+)%,M:([\d.]+)%\]", text)
     if not matches:
@@ -437,13 +460,14 @@ def id_match_rate(fasta_path: Path, go_file: Path) -> float:
 
 def run_module3(proteome_stats: pd.DataFrame, manifest_df: pd.DataFrame, clean_dir: Path, workdir: Path,
                 results_path: Path, lineage: str, busco_pass: float, busco_flag: float, id_threshold: float,
-                threads: int, skip_busco: bool, force: bool) -> pd.DataFrame:
+                threads: int, skip_busco: bool, force: bool, busco_jobs: int = 1) -> pd.DataFrame:
     if _checkpoint(results_path, "QC table", force):
         return pd.read_csv(results_path, sep="\t")
 
     go_by_species = dict(zip(manifest_df["Species"], manifest_df["GOFile"]))
-    rows = []
-    for _, row in proteome_stats.iterrows():
+    species_rows = list(proteome_stats.iterrows())
+
+    def qc_row(row):
         species, code5 = row["Species"], row["Code5"]
         fasta = clean_dir / f"{code5}.fa"
         busco = {"C": None} if skip_busco else run_busco(fasta, lineage, workdir, threads, code5)
@@ -456,11 +480,32 @@ def run_module3(proteome_stats: pd.DataFrame, manifest_df: pd.DataFrame, clean_d
             busco_status = "FLAG"
         else:
             busco_status = "FAIL"
-
         go_file = go_by_species.get(species)
-        match_rate = id_match_rate(fasta, Path(go_file)) if go_file and pd.notna(go_file) and Path(go_file).exists() else float("nan")
-        rows.append({"Species": species, "Code5": code5, "BUSCO_C": c, "BUSCO_status": busco_status,
-                     "GO_ID_match_rate": match_rate})
+        match_rate = (id_match_rate(fasta, Path(go_file))
+                      if go_file and pd.notna(go_file) and Path(go_file).exists() else float("nan"))
+        return {"Species": species, "Code5": code5, "BUSCO_C": c, "BUSCO_status": busco_status,
+                "GO_ID_match_rate": match_rate}
+
+    if not skip_busco and busco_jobs > 1:
+        n_cached = sum(1 for _, row in species_rows
+                       if (workdir / "busco" / row["Code5"] /
+                           f"short_summary.specific.{lineage}.{row['Code5']}.txt").exists())
+        _log(f"  running BUSCO for {len(species_rows)} species ({n_cached} already done, reused as-is), "
+             f"--busco-jobs={busco_jobs} in parallel (--threads={threads} each)")
+        ensure_busco_dataset(lineage, workdir)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=busco_jobs) as pool:
+            futures = {pool.submit(qc_row, row): i for i, (_, row) in enumerate(species_rows)}
+            rows = [None] * len(species_rows)
+            try:
+                for fut in concurrent.futures.as_completed(futures):
+                    rows[futures[fut]] = fut.result()
+            except BaseException:
+                # a species' BUSCO run failed (_run() exits) -- drop jobs not yet started instead of
+                # burning through the rest of the list before the failure surfaces
+                pool.shutdown(wait=False, cancel_futures=True)
+                raise
+    else:
+        rows = [qc_row(row) for _, row in species_rows]
 
     df = pd.DataFrame(rows)
     low_match = df["GO_ID_match_rate"].dropna()

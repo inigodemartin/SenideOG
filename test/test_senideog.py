@@ -88,6 +88,25 @@ def test_module1_flat_dir_kingdom_filter():
         lineage_tsv.unlink(missing_ok=True)
 
 
+def test_busco_cleanup():
+    """After a BUSCO run, only the short_summary file should survive per species."""
+    out_dir = TEST_DIR / "_tmp_busco_out"
+    out_dir.mkdir(exist_ok=True)
+    try:
+        keep = out_dir / "short_summary.specific.viridiplantae_odb12.Test1.txt"
+        keep.write_text("C:95.0%[S:90.0%,D:5.0%,F:2.0%,M:3.0%]\n")
+        (out_dir / "logs").mkdir()
+        (out_dir / "logs" / "busco.log").write_text("...")
+        (out_dir / "hmmer_output").mkdir()
+        (out_dir / "run_viridiplantae_odb12.json").write_text("{}")
+
+        C._cleanup_busco_run(out_dir, keep=keep)
+
+        assert list(out_dir.iterdir()) == [keep], list(out_dir.iterdir())
+    finally:
+        shutil.rmtree(out_dir)
+
+
 def test_module7_matrix(tmp_matrix, tmp_stats):
     matrix = C.run_module7(OF_RESULTS, None, tmp_matrix, tmp_stats, min_species=1, force=True)
     assert matrix.shape == (6, 12), matrix.shape
@@ -116,6 +135,7 @@ def main():
     test_module1_inventory()
     test_module1_flat_dir()
     test_module1_flat_dir_kingdom_filter()
+    test_busco_cleanup()
 
     tmp_matrix = TEST_DIR / "_tmp_mod07_matrix.tsv"
     tmp_stats = TEST_DIR / "_tmp_mod07_stats.tsv"

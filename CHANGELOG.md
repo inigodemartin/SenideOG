@@ -1,5 +1,26 @@
 # Changelog
 
+## [v0.5.0] — 2026-09-11
+
+### Added
+- `--busco-jobs` (default 1): runs M3's BUSCO calls for that many species in
+  parallel (each still uses `--threads` internally, so total CPU used ~=
+  `--busco-jobs` x `--threads`). The lineage dataset is pre-downloaded once
+  via `busco --download` before dispatching, avoiding a race where several
+  parallel `busco` processes try to populate the shared `busco_downloads/`
+  cache at once on a first run. If one species' BUSCO run fails, jobs not
+  yet started are cancelled instead of working through the full species
+  list before the failure surfaces.
+
+### Changed
+- Each species' BUSCO output directory (`workdir/busco/<Code5>/`) is pruned
+  down to just the `short_summary.*.txt` file right after it's parsed —
+  `hmmer_output/`, `busco_sequences/`, `logs/`, etc. are large and fully
+  reproducible by rerunning BUSCO, so they no longer pile up per species.
+  The kept summary file is also what the existing per-species checkpoint
+  looks for, so already-completed species are still recognized and skipped
+  on a resumed run.
+
 ## [v0.4.0] — 2026-09-11
 
 ### Changed
