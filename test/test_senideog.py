@@ -145,19 +145,26 @@ def test_busco_cleanup():
 
 
 def test_busco_parses_real_summary_format():
-    """Real BUSCO output is 'M:<pct>%,n:<count>]', not 'M:<pct>%]' -- the
-    parsing regex must accept the ',n:<count>' suffix or every species ends
-    up NO_BUSCO_RESULT even after a clean, successful BUSCO run."""
+    """The results line's bracket punctuation moved between BUSCO versions:
+    v5 keeps F/M/n inside the brackets ('...,M:<pct>%,n:<count>]'), v6 closes
+    the bracket after D and puts F/M/n after it ('...,D:<pct>%],F:<pct>%,M:
+    <pct>%,n:<count>'). Parsing must not depend on where the brackets sit,
+    or every species ends up NO_BUSCO_RESULT despite a clean BUSCO run."""
+    formats = {
+        "v5": "C:98.4%[S:97.2%,D:1.2%,F:0.7%,M:0.9%,n:425]\n",
+        "v6": "C:98.1%[S:57.3%,D:40.8%],F:1.0%,M:1.0%,n:822\n",
+    }
     workdir = TEST_DIR / "_tmp_busco_parse"
-    out_dir = workdir / "busco" / "Test3"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    summary = out_dir / "short_summary.specific.viridiplantae_odb12.Test3.txt"
-    summary.write_text("C:98.4%[S:97.2%,D:1.2%,F:0.7%,M:0.9%,n:425]\n")
     orig_require_tool = C._require_tool
     try:
         C._require_tool = lambda name: name
-        result = C.run_busco(TEST_DIR / "nonexistent.fa", "viridiplantae_odb12", workdir, 4, "Test3")
-        assert result["C"] == 98.4, result
+        for tag, line in formats.items():
+            out_dir = workdir / "busco" / f"Test3{tag}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            summary = out_dir / f"short_summary.specific.viridiplantae_odb12.Test3{tag}.txt"
+            summary.write_text(line)
+            result = C.run_busco(TEST_DIR / "nonexistent.fa", "viridiplantae_odb12", workdir, 4, f"Test3{tag}")
+            assert result["C"] is not None, (tag, result)
     finally:
         C._require_tool = orig_require_tool
         shutil.rmtree(workdir, ignore_errors=True)

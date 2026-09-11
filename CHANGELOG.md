@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.7.1] — 2026-09-11
+
+### Fixed
+- M3's BUSCO results-line parsing depended on the brackets closing right
+  after `M:<pct>%`. BUSCO 6.0.0 moved the closing bracket to right after
+  `D:<pct>%` and put `F`/`M`/`n` after it
+  (`C:98.1%[S:57.3%,D:40.8%],F:1.0%,M:1.0%,n:822` vs. the old
+  `C:98.4%[S:97.2%,D:1.2%,F:0.7%,M:0.9%,n:425]`), so the v0.7.0 regex fix
+  still didn't match and every species kept coming out `NO_BUSCO_RESULT`
+  despite the `short_summary.*.txt` files being present and correct.
+  Each field (`C`/`S`/`D`/`F`/`M`) is now looked up independently by its
+  `<letter>:<pct>%` token instead of relying on bracket position, so it no
+  longer depends on which BUSCO version produced the summary.
+
 ## [v0.7.0] — 2026-09-11
 
 ### Fixed

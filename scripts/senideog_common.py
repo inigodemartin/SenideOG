@@ -462,10 +462,17 @@ def run_busco(fasta: Path, lineage: str, workdir: Path, threads: int, code5: str
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
     _cleanup_busco_run(out_dir, keep=summary)
     text = summary.read_text()
-    matches = re.findall(r"C:([\d.]+)%\[S:([\d.]+)%,D:([\d.]+)%,F:([\d.]+)%,M:([\d.]+)%(?:,n:\d+)?\]", text)
-    if not matches:
+    # Field positions relative to the brackets moved between BUSCO versions
+    # (v5: "C:_%[S:_%,D:_%,F:_%,M:_%,n:_]"; v6: "C:_%[S:_%,D:_%],F:_%,M:_%,n:_")
+    # -- look up each "<letter>:<pct>%" token independently instead of
+    # depending on where the brackets close.
+    fields = {}
+    for key in ("C", "S", "D", "F", "M"):
+        m = re.search(rf"{key}:([\d.]+)%", text)
+        fields[key] = float(m.group(1)) if m else None
+    if fields["C"] is None:
         return {"C": None, "S": None, "D": None, "F": None, "M": None}
-    return dict(zip(["C", "S", "D", "F", "M"], (float(v) for v in matches[0])))
+    return fields
 
 
 def id_match_rate(fasta_path: Path, go_file: Path) -> float:
