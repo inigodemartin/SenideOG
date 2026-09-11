@@ -679,7 +679,9 @@ def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, f
         if not blast_files:
             working_dir = None
 
-    of_dir.mkdir(parents=True, exist_ok=True)
+    # of_dir itself must NOT be pre-created: OrthoFinder's "-f" (fresh run)
+    # mode requires -o to not exist yet, it creates it. On a "-b" resume,
+    # of_dir already exists (that's how `existing` was found above).
     core_proteomes = of_dir.parent / "core_proteomes"
     core_proteomes.mkdir(parents=True, exist_ok=True)
     for code in core_codes:

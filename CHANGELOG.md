@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.8.3] — 2026-09-11
+
+### Fixed
+- M5 (`run_module5`) pre-created `of_dir` (`workdir/of_core/`) before
+  launching a fresh OrthoFinder run, but OrthoFinder's `-f` mode requires
+  its `-o` target to not exist yet (it creates it itself) — every first
+  attempt failed immediately with `ERROR: non-default output directory
+  already exists`. `of_dir` is no longer pre-created; it was never
+  needed for anything else in the function (`core_proteomes`, the actual
+  input, lives under `of_dir.parent`).
+
 ## [v0.8.2] — 2026-09-11
 
 ### Fixed

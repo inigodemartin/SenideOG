@@ -218,6 +218,34 @@ def test_busco_reruns_truncated_summary():
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_run_module5_does_not_precreate_output_dir():
+    """OrthoFinder's fresh '-f' run refuses to write to an -o directory
+    that already exists (it creates it itself) -- the wrapper must not
+    pre-create of_dir before invoking orthofinder in that mode."""
+    workdir = TEST_DIR / "_tmp_mod05_workdir"
+    clean_dir = workdir / "proteomes_clean"
+    clean_dir.mkdir(parents=True, exist_ok=True)
+    (clean_dir / "Test7.fa").write_text(">Test7|gene1\nMAAAA\n")
+    of_dir = workdir / "of_core"
+    captured = {}
+    orig_require_tool, orig_run = C._require_tool, C._run
+
+    def fake_run(cmd, **k):
+        captured["cmd"] = cmd
+        captured["of_dir_existed"] = of_dir.exists()
+        return subprocess.CompletedProcess(cmd, 0)
+
+    try:
+        C._require_tool = lambda name: name
+        C._run = fake_run
+        C.run_module5(["Test7"], clean_dir, of_dir, threads=4, force=False)
+        assert captured["of_dir_existed"] is False, "of_dir must not exist before orthofinder -f creates it"
+        assert "-f" in captured["cmd"], captured["cmd"]
+    finally:
+        C._require_tool, C._run = orig_require_tool, orig_run
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def test_module3_tracks_unresolved_species():
     """Species that never made it past M1 (no GCA, no proteome file, ...)
     must still show up in mod03_qc.tsv -- otherwise the QC table can't be
@@ -283,6 +311,7 @@ def main():
     test_busco_cleanup()
     test_busco_parses_real_summary_format()
     test_busco_reruns_truncated_summary()
+    test_run_module5_does_not_precreate_output_dir()
     test_module3_tracks_unresolved_species()
 
     tmp_matrix = TEST_DIR / "_tmp_mod07_matrix.tsv"
