@@ -696,6 +696,9 @@ def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, f
         _log(f"  resuming from existing all-vs-all in {working_dir}")
         cmd = ["orthofinder", "-b", str(working_dir)] + cmd[1:-2]
     else:
+        if of_dir.exists():
+            _log(f"  removing incomplete {of_dir} from a previous interrupted run")
+            shutil.rmtree(of_dir)
         cmd = ["orthofinder", "-f", str(core_proteomes)] + cmd[1:]
     _run(cmd)
     return find_orthofinder_results(of_dir)
@@ -715,6 +718,9 @@ def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, assign_di
         if not dest.exists():
             shutil.copy2(clean_dir / f"{code}.fa", dest)
 
+    if assign_dir.exists():
+        _log(f"  removing incomplete {assign_dir} from a previous interrupted run")
+        shutil.rmtree(assign_dir)
     _run(["orthofinder", "--assign", str(rest_proteomes), "--core", str(core_results),
           "-t", str(threads), "-o", str(assign_dir)])
     return find_orthofinder_results(assign_dir)

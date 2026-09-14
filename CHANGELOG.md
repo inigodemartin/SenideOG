@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.8.5] — 2026-09-14
+
+### Fixed
+- `envs/senideog.yaml` listed `treepl`, which isn't packaged on
+  bioconda/conda-forge — `conda env create` failed to solve on every
+  fresh install. It's only needed later by `senideog_phylo.py` (fase 2)
+  for divergence dating, not by the current M1-M8 pipeline; removed from
+  the yaml with a note to build it from source
+  (https://github.com/blackrim/treePL) when that script exists.
+
+## [v0.8.4] — 2026-09-14
+
+### Fixed
+- `run_module5`/`run_module6` still hit OrthoFinder's `ERROR: non-default
+  output directory already exists` if a *previous* attempt had been
+  interrupted mid-run, leaving `of_core`/`of_assign` on disk with no
+  `Orthogroups/` and no resumable `Blast*.txt.gz` (v0.8.3 only fixed the
+  unconditional pre-creation on a clean first run). Both functions now
+  remove the leftover directory before launching a fresh OrthoFinder run.
+
 ## [v0.8.3] — 2026-09-11
 
 ### Fixed

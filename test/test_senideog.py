@@ -246,6 +246,36 @@ def test_run_module5_does_not_precreate_output_dir():
         shutil.rmtree(workdir, ignore_errors=True)
 
 
+def test_run_module5_clears_incomplete_leftover_before_fresh_run():
+    """A Results_* left by a previously-interrupted OrthoFinder run (no
+    Orthogroups/, no resumable Blast*.txt.gz) must be removed before a
+    fresh '-f' attempt -- otherwise OrthoFinder refuses with 'non-default
+    output directory already exists' on every retry."""
+    workdir = TEST_DIR / "_tmp_mod05b_workdir"
+    clean_dir = workdir / "proteomes_clean"
+    clean_dir.mkdir(parents=True, exist_ok=True)
+    (clean_dir / "Test8.fa").write_text(">Test8|gene1\nMAAAA\n")
+    of_dir = workdir / "of_core"
+    leftover = of_dir / "Results_Sep01"
+    leftover.mkdir(parents=True, exist_ok=True)
+    (leftover / "Log.txt").write_text("interrupted\n")
+    captured = {}
+    orig_require_tool, orig_run = C._require_tool, C._run
+
+    def fake_run(cmd, **k):
+        captured["of_dir_existed"] = of_dir.exists()
+        return subprocess.CompletedProcess(cmd, 0)
+
+    try:
+        C._require_tool = lambda name: name
+        C._run = fake_run
+        C.run_module5(["Test8"], clean_dir, of_dir, threads=4, force=False)
+        assert captured["of_dir_existed"] is False, "leftover of_dir must be cleared before orthofinder -f runs"
+    finally:
+        C._require_tool, C._run = orig_require_tool, orig_run
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def test_module3_tracks_unresolved_species():
     """Species that never made it past M1 (no GCA, no proteome file, ...)
     must still show up in mod03_qc.tsv -- otherwise the QC table can't be

@@ -16,4 +16,6 @@ dependencies:
   - iqtree
   - astral-tree
   - cafe
-  - treepl
+  # treePL (divergence dating, needed for senideog_phylo.py) is not
+  # packaged on bioconda/conda-forge -- build from source:
+  # https://github.com/blackrim/treePL
