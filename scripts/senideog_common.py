@@ -59,6 +59,24 @@ def _require_tool(name: str) -> str:
     return tool
 
 
+def _check_diamond_version() -> None:
+    """diamond >=2.1 raises 'Input file seems to be empty' on a 0-byte FASTA,
+    which orthofinder legitimately produces during --assign/core inference
+    (a species or profile cluster with 0 unassigned/member genes). The
+    bundled diamond OrthoFinder is tested against (2.0.13) tolerates it;
+    this is a known, still-open upstream bug (davidemms/OrthoFinder#984)."""
+    diamond = _require_tool("diamond")
+    out = subprocess.run([diamond, "--version"], stdout=subprocess.PIPE, text=True).stdout
+    major, minor = (int(x) for x in out.strip().split()[-1].split(".")[:2])
+    if (major, minor) >= (2, 1):
+        print(f"ERROR: diamond {out.strip().split()[-1]} is installed, but OrthoFinder crashes "
+              f"on it (diamond >=2.1 errors on the empty intermediate FASTA files OrthoFinder "
+              f"legitimately produces — davidemms/OrthoFinder#984, still open).\n"
+              f"       Pin the version it was tested with instead:  "
+              f"conda install -c bioconda diamond=2.0.13", file=sys.stderr)
+        sys.exit(1)
+
+
 def _run(cmd: list, capture_stdout: bool = False, env: dict = None, cwd: Path = None,
          check: bool = True) -> subprocess.CompletedProcess:
     """check=False lets the caller handle a non-zero exit itself (used for
@@ -708,6 +726,7 @@ def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, f
         return existing
 
     orthofinder = _require_tool("orthofinder")
+    _check_diamond_version()
     working_dir = None
     latest_attempt = _find_latest_orthofinder_attempt(of_dir)
     if latest_attempt:
@@ -749,20 +768,7 @@ def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, of_core_d
         return existing
 
     _require_tool("orthofinder")
-
-    # An interrupted "-b" resume of M5 can leave one of OrthoFinder's own
-    # internal profile files 0 bytes even though Orthogroups/ completed
-    # fine — diamond makedb then fails on it, and every one of the "rest"
-    # species fails to assign in a silent cascade. Catch it before wasting
-    # a full --assign attempt.
-    empty_profiles = [p for p in (core_results / "WorkingDirectory").glob("profile_sequences*")
-                       if p.stat().st_size == 0]
-    if empty_profiles:
-        print(f"ERROR: {empty_profiles[0]} is empty — {core_results} is a corrupt --core "
-              f"result (likely from an interrupted M5 resume). Rerun Module 5 with --force "
-              f"to rebuild it from scratch.", file=sys.stderr)
-        sys.exit(1)
-
+    _check_diamond_version()
     rest_proteomes = assign_dir.parent / "rest_proteomes"
     rest_proteomes.mkdir(parents=True, exist_ok=True)
     for code in rest_codes:

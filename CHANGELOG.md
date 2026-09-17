@@ -1,6 +1,23 @@
 # Changelog
 
-## [v0.8.9] — 2026-09-17
+## [v0.8.10] — 2026-09-17
+
+### Fixed
+- Corrects v0.8.9: the empty `profile_sequences*` file wasn't leftover
+  corruption from an interrupted M5 resume — M5 had completed cleanly.
+  `diamond makedb: Input file seems to be empty` is a known, still-open
+  upstream OrthoFinder bug (davidemms/OrthoFinder#984): `--assign`
+  legitimately produces 0-byte intermediate FASTA files (a profile
+  cluster or species with 0 unassigned genes), and `diamond>=2.1` treats
+  that as a fatal error while the diamond version OrthoFinder is tested
+  against (2.0.13) tolerates it. Reverted the v0.8.9 pre-check (it would
+  have aborted perfectly healthy runs) and instead pinned
+  `diamond=2.0.13` in `envs/senideog.yaml`, plus a `_check_diamond_version()`
+  guard in `run_module5`/`run_module6` that fails loudly with the fix if
+  an incompatible diamond is on PATH, instead of cascading through
+  hundreds of doomed diamond calls.
+
+## [v0.8.9] — 2026-09-17 (superseded by v0.8.10)
 
 ### Fixed
 - `run_module6` reused a `--core` result whose `Orthogroups/` was complete
