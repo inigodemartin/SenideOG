@@ -721,8 +721,22 @@ def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, assign_di
     if assign_dir.exists():
         _log(f"  removing incomplete {assign_dir} from a previous interrupted run")
         shutil.rmtree(assign_dir)
+    assign_dir.mkdir(parents=True, exist_ok=True)
+
+    # --assign rejects -o ("only with -f"); it always writes its Results_* dir
+    # as a sibling of --core instead. Snapshot before/after to find it, then
+    # move it under assign_dir so find_orthofinder_results(assign_dir) still works.
+    of_root = core_results.parent
+    before = set(of_root.glob("Results_*"))
     _run(["orthofinder", "--assign", str(rest_proteomes), "--core", str(core_results),
-          "-t", str(threads), "-o", str(assign_dir)])
+          "-t", str(threads)])
+    new_dirs = set(of_root.glob("Results_*")) - before
+    if not new_dirs:
+        print(f"ERROR: OrthoFinder --assign produced no new Results_* directory in {of_root}",
+              file=sys.stderr)
+        sys.exit(1)
+    new_dir = new_dirs.pop()
+    shutil.move(str(new_dir), str(assign_dir / new_dir.name))
     return find_orthofinder_results(assign_dir)
 
 

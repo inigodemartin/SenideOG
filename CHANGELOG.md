@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.8.6] — 2026-09-17
+
+### Fixed
+- `run_module6` passed `-o of_assign_dir` to `orthofinder --assign`, which
+  OrthoFinder rejects (`-o` is only valid with a fresh `-f` run) — Module 6
+  failed after Module 5's 11h core inference had already completed.
+  `--assign` always writes its `Results_*` dir as a sibling of `--core`
+  instead; the fix snapshots that directory before/after the run and moves
+  the new one under `of_assign/`, so downstream lookups are unaffected.
+
 ## [v0.8.5] — 2026-09-14
 
 ### Fixed
