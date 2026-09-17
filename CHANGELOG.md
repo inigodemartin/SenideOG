@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.8.9] — 2026-09-17
+
+### Fixed
+- `run_module6` reused a `--core` result whose `Orthogroups/` was complete
+  but whose `WorkingDirectory/profile_sequences*` (OrthoFinder's internal
+  kmeans profile, left 0 bytes by an interrupted M5 "-b" resume) was empty.
+  `diamond makedb` then failed on it, and every "rest" species failed to
+  assign in a silent cascade (534 identical `diamond blastp` errors).
+  `run_module6` now checks for a 0-byte profile file before calling
+  `--assign` and fails loudly, telling the user to rerun Module 5 with
+  `--force`.
+
 ## [v0.8.8] — 2026-09-17
 
 ### Fixed

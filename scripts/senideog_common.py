@@ -749,6 +749,20 @@ def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, of_core_d
         return existing
 
     _require_tool("orthofinder")
+
+    # An interrupted "-b" resume of M5 can leave one of OrthoFinder's own
+    # internal profile files 0 bytes even though Orthogroups/ completed
+    # fine — diamond makedb then fails on it, and every one of the "rest"
+    # species fails to assign in a silent cascade. Catch it before wasting
+    # a full --assign attempt.
+    empty_profiles = [p for p in (core_results / "WorkingDirectory").glob("profile_sequences*")
+                       if p.stat().st_size == 0]
+    if empty_profiles:
+        print(f"ERROR: {empty_profiles[0]} is empty — {core_results} is a corrupt --core "
+              f"result (likely from an interrupted M5 resume). Rerun Module 5 with --force "
+              f"to rebuild it from scratch.", file=sys.stderr)
+        sys.exit(1)
+
     rest_proteomes = assign_dir.parent / "rest_proteomes"
     rest_proteomes.mkdir(parents=True, exist_ok=True)
     for code in rest_codes:
