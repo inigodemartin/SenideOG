@@ -661,23 +661,42 @@ def run_module4(qc_df: pd.DataFrame, lineage_path: Path, results_path: Path, cor
 
 # --------------------------------------------------- M5/M6: OrthoFinder wrappers
 def find_orthofinder_results(of_dir: Path):
-    hits = sorted(of_dir.glob("Results_*"))
-    return hits[-1] if hits else None
+    """Deepest Results_* dir under of_dir with a completed Orthogroups/ output.
+
+    Every "-b" resume of an interrupted run makes OrthoFinder nest its next
+    attempt one level deeper (Results_X/WorkingDirectory/OrthoFinder/Results_Y/...),
+    so the real output is not necessarily a direct child of of_dir — search
+    recursively and require Orthogroups/ to rule out empty/interrupted shells.
+    """
+    hits = [d for d in of_dir.rglob("Results_*") if (d / "Orthogroups").is_dir()]
+    if not hits:
+        return None
+    return max(hits, key=lambda d: len(d.parts))
+
+
+def _find_latest_orthofinder_attempt(of_dir: Path):
+    """Deepest Results_* dir under of_dir, complete or not — used to locate a
+    WorkingDirectory with reusable Blast*.txt.gz for a "-b" resume."""
+    hits = list(of_dir.rglob("Results_*"))
+    if not hits:
+        return None
+    return max(hits, key=lambda d: len(d.parts))
 
 
 def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, force: bool) -> Path:
     existing = find_orthofinder_results(of_dir)
-    if existing and (existing / "Orthogroups").is_dir() and not force:
+    if existing and not force:
         _log(f"  [checkpoint] core inference — {existing} already complete, skipping")
         return existing
 
     orthofinder = _require_tool("orthofinder")
     working_dir = None
-    if existing:
-        working_dir = existing / "WorkingDirectory"
-        blast_files = list(working_dir.glob("Blast*.txt.gz")) if working_dir.is_dir() else []
-        if not blast_files:
-            working_dir = None
+    latest_attempt = _find_latest_orthofinder_attempt(of_dir)
+    if latest_attempt:
+        wd = latest_attempt / "WorkingDirectory"
+        blast_files = list(wd.glob("Blast*.txt.gz")) if wd.is_dir() else []
+        if blast_files:
+            working_dir = wd
 
     # of_dir itself must NOT be pre-created: OrthoFinder's "-f" (fresh run)
     # mode requires -o to not exist yet, it creates it. On a "-b" resume,
@@ -704,7 +723,8 @@ def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, f
     return find_orthofinder_results(of_dir)
 
 
-def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, assign_dir: Path, threads: int, force: bool) -> Path:
+def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, of_core_dir: Path,
+                 assign_dir: Path, threads: int, force: bool) -> Path:
     existing = find_orthofinder_results(assign_dir)
     if existing and not force:
         _log(f"  [checkpoint] assignment — {existing} already complete, skipping")
@@ -723,19 +743,20 @@ def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, assign_di
         shutil.rmtree(assign_dir)
     assign_dir.mkdir(parents=True, exist_ok=True)
 
-    # --assign rejects -o ("only with -f"); it always writes its Results_* dir
-    # as a sibling of --core instead. Snapshot before/after to find it, then
-    # move it under assign_dir so find_orthofinder_results(assign_dir) still works.
-    of_root = core_results.parent
-    before = set(of_root.glob("Results_*"))
+    # --assign rejects -o ("only with -f"); it writes its Results_* dir
+    # somewhere under --core's tree instead (nesting depth depends on how
+    # deep core_results itself is). Snapshot before/after under the stable
+    # of_core_dir root to find it regardless of depth, then move it under
+    # assign_dir so find_orthofinder_results(assign_dir) still works.
+    before = set(of_core_dir.rglob("Results_*"))
     _run(["orthofinder", "--assign", str(rest_proteomes), "--core", str(core_results),
           "-t", str(threads)])
-    new_dirs = set(of_root.glob("Results_*")) - before
+    new_dirs = set(of_core_dir.rglob("Results_*")) - before
     if not new_dirs:
-        print(f"ERROR: OrthoFinder --assign produced no new Results_* directory in {of_root}",
+        print(f"ERROR: OrthoFinder --assign produced no new Results_* directory under {of_core_dir}",
               file=sys.stderr)
         sys.exit(1)
-    new_dir = new_dirs.pop()
+    new_dir = max(new_dirs, key=lambda d: len(d.parts))
     shutil.move(str(new_dir), str(assign_dir / new_dir.name))
     return find_orthofinder_results(assign_dir)
 

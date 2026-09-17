@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.8.7] — 2026-09-17
+
+### Fixed
+- `find_orthofinder_results` only looked at direct `Results_*` children of
+  the given directory. Every "-b" resume of an interrupted Module 5 run
+  makes OrthoFinder nest its next attempt one level deeper
+  (`Results_X/WorkingDirectory/OrthoFinder/Results_Y/...`), so after any
+  resume the function kept returning the outer, incomplete shell instead of
+  the real completed `Orthogroups/` output. That broken `core_results` was
+  then passed to Module 6's `--core`, which OrthoFinder didn't recognize as
+  valid prior orthogroups — instead of a fast assignment, it silently
+  redid the full de novo clustering (BLAST, MCL, MSA/gene trees) for all
+  species combined. `find_orthofinder_results` now searches recursively
+  and requires `Orthogroups/` to exist; a new `_find_latest_orthofinder_attempt`
+  helper (any depth, complete or not) is used separately to locate a
+  `WorkingDirectory` to resume from. `run_module6`'s before/after directory
+  diff (added in v0.8.6) now also searches recursively, rooted at the
+  stable `of_core_dir` instead of `core_results.parent`.
+
 ## [v0.8.6] — 2026-09-17
 
 ### Fixed

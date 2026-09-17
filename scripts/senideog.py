@@ -20,7 +20,7 @@ Phylogeny/CAFE5 (fase 2) is a separate script, senideog_phylo.py, written
 once M5/M6 outputs exist to build on -- see the design doc.
 """
 
-VERSION = "v0.8.6"
+VERSION = "v0.8.7"
 
 import argparse
 import getpass
@@ -269,7 +269,7 @@ def main():
         rest = proteome_stats[~proteome_stats["Species"].isin(core_species)]
         rest_codes = rest["Code5"].tolist()
         if rest_codes:
-            assign_results = C.run_module6(rest_codes, clean_dir, core_results, of_assign_dir, args.threads, args.force)
+            assign_results = C.run_module6(rest_codes, clean_dir, core_results, of_core_dir, of_assign_dir, args.threads, args.force)
         else:
             C._log("  no non-core species to assign")
             assign_results = None
