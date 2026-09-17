@@ -1,5 +1,23 @@
 # Changelog
 
+## [v0.8.8] — 2026-09-17
+
+### Fixed
+- `orthofinder --assign --core` failed with "Couldn't find previous
+  orthogroups" when `--core` pointed at a Results_* dir left nested several
+  levels deep by repeated interrupted "-b" resumes of Module 5 — OrthoFinder's
+  own path resolution for `--core` can't follow that depth. `run_module5`
+  now flattens the real (Orthogroups-containing) result up to a direct
+  child of `of_core_dir` right after finding it, whether on a checkpoint
+  skip or a fresh completion, so `--core` always gets a plain top-level dir.
+- OrthoFinder can exit 0 even after printing an internal `ERROR:` line, so
+  `_run()`'s returncode check didn't catch this failure — `run_module6`
+  silently moved the resulting (Orthogroups-less) directory and returned
+  `None`, and Module 7 silently fell back to core-only species, writing an
+  incomplete `mod07_og_matrix.tsv` with no error at all. `run_module6` now
+  checks that the produced directory actually has `Orthogroups/` and exits
+  with a clear error if not.
+
 ## [v0.8.7] — 2026-09-17
 
 ### Fixed

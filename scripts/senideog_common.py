@@ -683,9 +683,27 @@ def _find_latest_orthofinder_attempt(of_dir: Path):
     return max(hits, key=lambda d: len(d.parts))
 
 
+def _flatten_orthofinder_results(of_dir: Path, result: Path) -> Path:
+    """Relocate a nested "-b"-resume Results_* dir to be a direct child of
+    of_dir. OrthoFinder's --assign/--core expects a plain, non-nested
+    Results dir; repeated interrupted resumes otherwise leave the real
+    output buried several "WorkingDirectory/OrthoFinder/Results_*" levels
+    deep, which OrthoFinder's own --core path resolution can't follow
+    ("Couldn't find previous orthogroups")."""
+    if result is None or result.parent == of_dir:
+        return result
+    flat = of_dir / result.name
+    if flat.exists() and flat != result:
+        shutil.rmtree(flat)
+    _log(f"  flattening nested {result} -> {flat}")
+    shutil.move(str(result), str(flat))
+    return flat
+
+
 def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, force: bool) -> Path:
     existing = find_orthofinder_results(of_dir)
     if existing and not force:
+        existing = _flatten_orthofinder_results(of_dir, existing)
         _log(f"  [checkpoint] core inference — {existing} already complete, skipping")
         return existing
 
@@ -720,7 +738,7 @@ def run_module5(core_codes: list, clean_dir: Path, of_dir: Path, threads: int, f
             shutil.rmtree(of_dir)
         cmd = ["orthofinder", "-f", str(core_proteomes)] + cmd[1:]
     _run(cmd)
-    return find_orthofinder_results(of_dir)
+    return _flatten_orthofinder_results(of_dir, find_orthofinder_results(of_dir))
 
 
 def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, of_core_dir: Path,
@@ -758,7 +776,18 @@ def run_module6(rest_codes: list, clean_dir: Path, core_results: Path, of_core_d
         sys.exit(1)
     new_dir = max(new_dirs, key=lambda d: len(d.parts))
     shutil.move(str(new_dir), str(assign_dir / new_dir.name))
-    return find_orthofinder_results(assign_dir)
+
+    result = find_orthofinder_results(assign_dir)
+    if result is None:
+        # OrthoFinder can exit 0 even after an internal "ERROR:" (e.g.
+        # "Couldn't find previous orthogroups"), so _run()'s returncode
+        # check alone won't catch this — the new dir exists but has no
+        # Orthogroups/, meaning the assignment silently failed.
+        print(f"ERROR: orthofinder --assign finished without producing Orthogroups/ in "
+              f"{assign_dir / new_dir.name} — check the OrthoFinder output above for an "
+              f"'ERROR:' line; the run failed internally despite exiting 0.", file=sys.stderr)
+        sys.exit(1)
+    return result
 
 
 # ------------------------------------------------------- M7: species x OG matrix
