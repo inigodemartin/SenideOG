@@ -6,7 +6,6 @@ dependencies:
   - python>=3.10
   - pandas
   - matplotlib
-  - codecarbon          # optional; enables carbon footprint tracking
   - orthofinder>=3.1.5
   # pinned: diamond>=2.1 crashes on the empty intermediate FASTA files
   # OrthoFinder legitimately produces (davidemms/OrthoFinder#984, open)

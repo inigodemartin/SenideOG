@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.8.11] — 2026-11-02
+
+### Changed
+- Carbon footprint tracking (codecarbon) removed: no `--disable_co2_tracking` flag, no emissions CSV,
+  no `emissions_kg_CO2eq` in the run summary.
+
 ## [v0.8.10] — 2026-09-17
 
 ### Fixed

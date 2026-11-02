@@ -1,4 +1,4 @@
-<img src="https://img.shields.io/badge/version-v0.8.10-teal"/>
+<img src="https://img.shields.io/badge/version-v0.8.11-teal"/>
 <img src="https://img.shields.io/badge/python-3.10%2B-blue"/>
 <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey"/>
 
@@ -49,7 +49,6 @@ conda activate senideog
 | BUSCO >=5 | M3 |
 | OrthoFinder >=3.1.5 | M5, M6 |
 | diamond | M5, M6 (via OrthoFinder) |
-| codecarbon (optional) | carbon footprint tracking |
 | trimal, IQ-TREE, ASTRAL, treePL, CAFE5 | fase 2 (`senideog_phylo.py`) |
 
 ### Usage
@@ -84,7 +83,6 @@ scripts/senideog.py --fasta-dir /path/to/proteomes_fasta --output run01 --skip_m
 | `--skip_mod1` .. `--skip_mod8` | off | skip a module, reusing its checkpointed output |
 | `--force` | off | rerun all steps regardless of existing outputs |
 | `--dry_run` | off | validate inputs, print planned steps, exit |
-| `--disable_co2_tracking` | off | disable codecarbon even if installed |
 
 ### Output layout
 
@@ -92,13 +90,13 @@ scripts/senideog.py --fasta-dir /path/to/proteomes_fasta --output run01 --skip_m
 {output}/
 ├── results/     mod01_manifest.tsv ... mod08_og_desc_ic.tsv, {prefix}.run_summary.json
 ├── workdir/     proteomes_clean/, of_core/, of_assign/ (safe to delete after success)
-└── logs/        Run_SenideOG_{date}.log, {prefix}.emissions.csv
+└── logs/        Run_SenideOG_{date}.log
 ```
 
 Every run writes `logs/Run_SenideOG_{YYYYMMDD}[_N].log` (append mode — a
 resumed multi-day run keeps its full history) and
 `results/{prefix}.run_summary.json` (tool versions via VERSION, species
-counts per module, resource usage, carbon footprint if tracked).
+counts per module, resource usage).
 
 ### Recommended workflow
 
