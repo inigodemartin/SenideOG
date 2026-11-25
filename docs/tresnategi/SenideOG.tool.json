@@ -1,0 +1,39 @@
+{
+  "name": "SenideOG",
+  "group": "Orthogroups",
+  "version": "v0.8.11",
+  "status": "paused",
+  "runs_on": "server",
+  "language": "python",
+  "license": "MIT",
+  "tagline": "Builds a species x orthogroup matrix from scratch with OrthoFinder, as an alternative to the GO-term matrix.",
+  "domains": ["orthogroups", "OrthoFinder", "matrix"],
+  "entrypoint": "scripts/senideog.py",
+  "repo": {
+    "url": "https://github.com/inigodemartin/SenideOG",
+    "visibility": "public",
+    "owner": "self",
+    "branch": "master"
+  },
+  "overview_md": "README.md",
+  "what_for": "The GO-term unit is biased: terms are transferred by embedding similarity, so species with well-annotated relatives look richer than they are. SenideOG replaces that unit with orthogroups inferred from the sequences themselves. Eight modules: inventory the proteomes, normalise them to one isoform per gene, QC them with BUSCO, pick a core of about 64 species stratified by order and family, run OrthoFinder de novo on that core, assign the remaining species to those orthogroups, build the species x orthogroup matrix in the same shape as the GO matrix, and annotate each orthogroup with a GO consensus.",
+  "inputs": [
+    {"flag": "--root / --fasta-dir", "name": "Proteomes", "format": "directory", "required": true, "where": "server", "description": "The FANTASIA_project tree, or a flat folder with one proteome FASTA per species."},
+    {"flag": "--core-size", "name": "Core size", "format": "int", "required": false, "description": "Species in the de novo OrthoFinder run (default 64)."},
+    {"flag": "--busco-lineage", "name": "BUSCO lineage", "format": "text", "required": false, "description": "viridiplantae_odb12 by default."},
+    {"flag": "--min-species", "name": "Matrix filter", "format": "int", "required": false, "description": "Drop orthogroups present in fewer than this many species (default 4)."}
+  ],
+  "outputs": [
+    {"path": "results/mod07_og_matrix.tsv", "format": "TSV", "description": "Species x orthogroup counts, the same shape as the GO-term matrix so both can be compared."},
+    {"path": "results/mod03_qc.tsv", "format": "TSV", "description": "BUSCO completeness and FASTA-to-GO id match rate per species."},
+    {"path": "results/mod08_og_annotation.tsv", "format": "TSV", "description": "GO consensus and description per orthogroup."}
+  ],
+  "usage": "python3 scripts/senideog.py --root /data/users/demartini/FANTASIA_project \\\n    --threads 32 --core-size 64 --output senide_run",
+  "requirements": {
+    "tools": ["OrthoFinder", "DIAMOND", "BUSCO", "seqkit"],
+    "notes": "About 300 GB of disk for the core all-vs-all and the gene trees; superseded in practice by the SonicParanoid run."
+  },
+  "consumes": ["OrthoFinder", "BUSCO"],
+  "produces_for": ["IkusiGO"],
+  "related": ["BegiradaOG", "IkusiGO"]
+}
